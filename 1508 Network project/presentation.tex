@@ -1,0 +1,340 @@
+\documentclass{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+
+% Packages
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% Title and author
+\title{Routing Strategies for Multi-Agent LLM Systems}
+\subtitle{Semantic, Performance-Weighted, and LLM Meta-Routing}
+\author{Zhaoheng Li}
+\institute{University of Toronto \\ Department of Electrical and Computer Engineering}
+\date{December 2025}
+
+\begin{document}
+
+% Slide 1: Title
+\frame{\titlepage}
+
+% Slide 2: Problem Statement
+\begin{frame}
+\frametitle{The Challenge}
+\begin{itemize}
+    \item Multi-agent LLM systems leverage specialized domain expertise
+    \pause
+    \item But they introduce a critical problem: \textbf{query routing}
+    \pause
+    \item Which agent should handle this query?
+    \pause
+    \item Trade-offs:
+    \begin{itemize}
+        \item \textbf{Accuracy}: Route to the right agent
+        \item \textbf{Efficiency}: Minimize routing overhead
+        \item \textbf{Adaptability}: Improve over time
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+% Slide 3: Our Four Agents
+\begin{frame}
+\frametitle{Specialist Agents}
+\begin{columns}
+\column{0.5\textwidth}
+\textbf{StatisticsAgent}
+\begin{itemize}
+    \item Hypothesis testing
+    \item Confidence intervals
+    \item Experimental design
+\end{itemize}
+
+\textbf{MLAgent}
+\begin{itemize}
+    \item Model training
+    \item Feature engineering
+    \item Hyperparameter tuning
+\end{itemize}
+
+\column{0.5\textwidth}
+\textbf{DataEngAgent}
+\begin{itemize}
+    \item SQL \& schema design
+    \item ETL pipelines
+    \item Data cleaning
+\end{itemize}
+
+\textbf{VizAgent}
+\begin{itemize}
+    \item Chart selection
+    \item Dashboard design
+    \item Data storytelling
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% Slide 4: Method 1 - Semantic Similarity
+\begin{frame}
+\frametitle{Method 1: Semantic Similarity Baseline}
+\begin{center}
+    \includegraphics[width=0.6\textwidth]{method1_diagram.png}
+\end{center}
+\begin{itemize}
+    \item Use pre-trained sentence embeddings (all-MiniLM-L6-v2)
+    \item Encode query and agent descriptions
+    \item Route to agent with highest cosine similarity
+    \pause
+    \item \textbf{Advantages}: Training-free, fast, stable
+    \item \textbf{Disadvantage}: No learning from history
+\end{itemize}
+\end{frame}
+
+% Slide 5: Method 2 - Performance-Weighted Routing
+\begin{frame}
+\frametitle{Method 2: Performance-Weighted Adaptive Routing}
+\begin{equation*}
+S_a(q) = 0.20 \cdot \text{semantic}(q,a) + 0.35 \cdot \text{accuracy}_a + 0.35 \cdot \text{indomain}_a + 0.10 \cdot \text{latency\_score}_a
+\end{equation*}
+
+\begin{itemize}
+    \item Maintains per-agent statistics:
+    \begin{itemize}
+        \item Accuracy rate (from ground truth)
+        \item IN\_DOMAIN rate (agent self-assessment)
+        \item Average latency
+    \end{itemize}
+    \pause
+    \item Updates via exponential moving average ($\alpha = 0.1$)
+    \pause
+    \item Learns during both training \textit{and} testing phases
+\end{itemize}
+\end{frame}
+
+% Slide 6: Method 3 - LLM Meta-Classification
+\begin{frame}
+\frametitle{Method 3: LLM Meta-Classification}
+\begin{itemize}
+    \item Use another LLM call to route queries
+    \pause
+    \item Meta-classifier sees:
+    \begin{itemize}
+        \item All four agent descriptions
+        \item The user's query
+    \end{itemize}
+    \pause
+    \item LLM decides which agent is best
+    \pause
+    \item \textbf{Advantage}: Can reason about complex boundaries
+    \item \textbf{Disadvantage}: Extra LLM call = high latency
+\end{itemize}
+\end{frame}
+
+% Slide 7: Experimental Setup
+\begin{frame}
+\frametitle{Evaluation Design}
+\begin{itemize}
+    \item \textbf{Datasets}:
+    \begin{itemize}
+        \item Training: 120 labeled queries (30 per agent)
+        \item Testing: 200 labeled queries
+    \end{itemize}
+    \pause
+    \item \textbf{Reproducibility}: 5 complete trials with different random seeds (22, 32, 52, 62, 82)
+    \pause
+    \item \textbf{Quality Validation}: Spot-check 20 sampled responses
+    \pause
+    \item \textbf{Metrics}:
+    \begin{itemize}
+        \item Routing accuracy, in-domain rate
+        \item Latency (routing + total)
+        \item Answer quality (5-point scale)
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+% Slide 8: Results - Accuracy
+\begin{frame}
+\frametitle{Key Results: Routing Accuracy}
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Method} & \textbf{Accuracy} & \textbf{In-Domain} & \textbf{Stability} \\
+\midrule
+Method 1: Semantic & 69.0\% & 91.8\% & ±0.0\% \\
+Method 2: Performance & 72.8\% & 94.2\% & ±1.5\% \\
+Method 3: LLM & 94.7\% & 99.2\% & ±0.6\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.3cm}
+
+\begin{itemize}
+    \item Method 2: +3.8pp over baseline
+    \item Method 3: +25.7pp over baseline (but at what cost?)
+\end{itemize}
+\end{frame}
+
+% Slide 9: Results - Latency
+\begin{frame}
+\frametitle{Key Results: Latency \& Efficiency}
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Method} & \textbf{Routing (ms)} & \textbf{Total (s)} \\
+\midrule
+Method 1: Semantic & 11.5 & 5.49 \\
+Method 2: Performance & 12.0 & 6.80 (+24\%) \\
+Method 3: LLM & 2410.6 & 8.24 (+50\%) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.3cm}
+
+\begin{itemize}
+    \item Method 3: 200× higher routing overhead!
+    \pause
+    \item Efficiency ratio:
+    \begin{itemize}
+        \item Method 2: 0.16 pp accuracy per percent latency
+        \item Method 3: 0.51 pp accuracy per percent latency
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+% Slide 10: Results - Quality
+\begin{frame}
+\frametitle{Quality Validation (Spot-Check)}
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{quality_breakdown.png}
+\end{center}
+\begin{itemize}
+    \item Mean quality: 4.47/5.0 (90\% good or excellent)
+    \item StatisticsAgent leads: 4.71/5.0
+    \item Even misrouted queries maintain standards
+\end{itemize}
+\end{frame}
+
+% Slide 11: The Trade-off
+\begin{frame}
+\frametitle{The Accuracy-Latency Trade-off}
+\begin{center}
+    \textbf{When to use each method?}
+\end{center}
+
+\begin{itemize}
+    \item \textbf{Method 1 (69\%, 5.49s)}
+    \begin{itemize}
+        \item Quick prototyping, resource-constrained environments
+        \item Best when latency is critical
+    \end{itemize}
+    \pause
+    \item \textbf{Method 2 (72.8\%, 6.80s)}
+    \begin{itemize}
+        \item Balanced accuracy-efficiency
+        \item Learns over time (improves in deployment)
+        \item Best for most production systems
+    \end{itemize}
+    \pause
+    \item \textbf{Method 3 (94.7\%, 8.24s)}
+    \begin{itemize}
+        \item Critical domains (medical, legal, financial)
+        \item When quality trumps latency
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+% Slide 12: Key Insight
+\begin{frame}
+\frametitle{Key Innovation: Dual-Signal Routing}
+\begin{itemize}
+    \item \textbf{External signal}: Accuracy (ground truth)
+    \begin{itemize}
+        \item What the data says
+    \end{itemize}
+    \pause
+    \item \textbf{Internal signal}: IN\_DOMAIN (agent self-assessment)
+    \begin{itemize}
+        \item What the agent believes about its capabilities
+    \end{itemize}
+    \pause
+    \item \textbf{Finding}: Combining both signals (50-50 weight) works better than either alone
+    \pause
+    \item Method 2's 94.2\% in-domain rate shows agents are well-calibrated
+    \item Enables learning without ground-truth labels during deployment!
+\end{itemize}
+\end{frame}
+
+% Slide 13: Discussion
+\begin{frame}
+\frametitle{Why Method 2 Works}
+\begin{itemize}
+    \item Continuous learning: improves as it routes queries
+    \pause
+    \item Balanced approach: combines signals
+    \begin{itemize}
+        \item 20\% semantic relevance
+        \item 35\% accuracy from history
+        \item 35\% agent confidence
+        \item 10\% latency
+    \end{itemize}
+    \pause
+    \item Practical deployment: doesn't require perfect routing
+    \begin{itemize}
+        \item 72.8\% correct routing yields 4.50/5.0 quality
+        \item 27.2\% misroutes still acceptable
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+% Slide 14: Limitations & Future Work
+\begin{frame}
+\frametitle{Limitations \& Future Directions}
+\textbf{Current Limitations:}
+\begin{itemize}
+    \item Only 4 agents, 200 queries
+    \item Single LLM backbone
+    \item Binary in-domain labels
+\end{itemize}
+
+\pause
+
+\textbf{Future Work:}
+\begin{itemize}
+    \item Hybrid routing (blend all three methods)
+    \item Scale to 10-50 agent ensembles
+    \item Online learning with streaming feedback
+    \item Heterogeneous agents (different LLMs, APIs)
+\end{itemize}
+\end{frame}
+
+% Slide 15: Conclusion
+\begin{frame}
+\frametitle{Conclusion}
+\begin{center}
+    \Large \textbf{Intelligent routing unlocks multi-agent systems}
+\end{center}
+
+\vspace{0.3cm}
+
+\begin{itemize}
+    \item Three methods span the accuracy-latency spectrum
+    \pause
+    \item Performance-weighted routing (Method 2) offers best balance
+    \pause
+    \item Dual-signal approach (accuracy + self-assessment) is key
+    \pause
+    \item Multi-agent systems can leverage expertise \textit{efficiently}
+\end{itemize}
+
+\vspace{0.5cm}
+
+\begin{center}
+    \Large \textcolor{blue}{\textbf{Questions?}}
+\end{center}
+\end{frame}
+
+\end{document}
